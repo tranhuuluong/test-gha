@@ -1,36 +1,85 @@
-# This is a basic workflow to help you get started with Actions
-
 name: Android CI
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "master" branch
   push:
-    branches: [ "master" ]
+    branches: [ master ]
   pull_request:
-    branches: [ "master" ]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
+    name: Build, Lint, Test & Coverage
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    permissions:
+      contents: read
+      actions: write
+      checks: write
+      id-token: write
+
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      # --- Checkout source code ---
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      # --- Set up JDK ---
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      # --- Cache Gradle ---
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # --- Gradle Permissions ---
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x gradlew
+
+      # --- Lint Check ---
+      - name: Run Android Lint
+        run: ./gradlew lintDebug
+
+      - name: Upload Lint Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+
+      # --- Build ---
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      # --- Unit Tests ---
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Upload Unit Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: app/build/test-results/testDebugUnitTest/
+
+      - name: Upload Unit Test Report (HTML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest/
+
+      # --- Summary Output in GitHub Actions (optional) ---
+      - name: Post Summary
+        if: always()
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          echo "## ✅ Android CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Lint: [View Report](./lint-report)" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit Tests: [View Report](./unit-test-report)" >> $GITHUB_STEP_SUMMARY
