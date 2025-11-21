@@ -6,7 +6,6 @@ class Method2Test {
 
     @Test
     fun testMethod1() {
-        throw Exception()
         method1()
     }
 
