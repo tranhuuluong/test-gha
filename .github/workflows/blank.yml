@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build, Lint, Test & Coverage
+    name: Lint • Unit Tests • Build Debug APK
     runs-on: ubuntu-latest
 
     permissions:
@@ -17,69 +17,91 @@ jobs:
       id-token: write
 
     steps:
-      # --- Checkout source code ---
+      # --------------------------
+      # Checkout repository
+      # --------------------------
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- Set up JDK ---
-      - name: Set up JDK
+      # --------------------------
+      # Install JDK
+      # --------------------------
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
 
-      # --- Cache Gradle ---
-      - name: Cache Gradle dependencies
+      # --------------------------
+      # Cache Gradle
+      # --------------------------
+      - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          restore-keys: ${{ runner.os }}-gradle-
 
-      # --- Gradle Permissions ---
-      - name: Grant execute permission for Gradle wrapper
+      # --------------------------
+      # Gradle permissions
+      # --------------------------
+      - name: Grant execute permission to Gradle wrapper
         run: chmod +x gradlew
 
-      # --- Lint Check ---
+      # --------------------------
+      # Run Lint
+      # --------------------------
       - name: Run Android Lint
-        run: ./gradlew lintDebug
+        run: ./gradlew lintDebug --no-daemon --stacktrace
 
-      - name: Upload Lint Report
+      - name: Upload Lint Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lint-report
-          path: app/build/reports/lint-results-debug.html
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
+            app/build/reports/lint.html
+          if-no-files-found: warn
 
-      # --- Build ---
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
-
-      # --- Unit Tests ---
+      # --------------------------
+      # Unit Tests
+      # --------------------------
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
 
-      - name: Upload Unit Test Results
+      - name: Upload Unit Test Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-results
-          path: app/build/test-results/testDebugUnitTest/
+          name: unit-test-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: warn
 
-      - name: Upload Unit Test Report (HTML)
-        if: always()
+      # --------------------------
+      # Build APK (after tests)
+      # --------------------------
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-report
-          path: app/build/reports/tests/testDebugUnitTest/
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
 
-      # --- Summary Output in GitHub Actions (optional) ---
+      # --------------------------
+      # Summary output
+      # --------------------------
       - name: Post Summary
         if: always()
         run: |
-          echo "## ✅ Android CI Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Lint: [View Report](./lint-report)" >> $GITHUB_STEP_SUMMARY
-          echo "- Unit Tests: [View Report](./unit-test-report)" >> $GITHUB_STEP_SUMMARY
+          echo "## Android CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 **Lint Report** (download from artifacts)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 **Unit Test Reports** (download from artifacts)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 **Debug APK** (download from artifacts)" >> $GITHUB_STEP_SUMMARY
