@@ -13,6 +13,7 @@ jobs:
       contents: read
 
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/android-setup
 
       - name: Run Lint
@@ -23,7 +24,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lint-report
-          path: app/build/reports/lint/
+          path: app/build/reports/lint-results-*.html
           if-no-files-found: warn
 
   tests:
@@ -33,6 +34,7 @@ jobs:
       contents: read
 
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/android-setup
 
       - name: Run Unit Tests
@@ -57,6 +59,7 @@ jobs:
       actions: write
 
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/android-setup
 
       - name: Build Debug APK
@@ -78,12 +81,10 @@ jobs:
     steps:
       - name: Display CI Summary
         run: |
-          # Map job results to emoji
           LINT_STATUS=$([ "${{ needs.lint.result }}" = "success" ] && echo "✅" || echo "❌")
           TESTS_STATUS=$([ "${{ needs.tests.result }}" = "success" ] && echo "✅" || echo "❌")
           BUILD_STATUS=$([ "${{ needs.build.result }}" = "success" ] && echo "✅" || echo "❌")
 
-          # Write summary table to GitHub Actions Summary
           echo "## 📦 Android CI Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
